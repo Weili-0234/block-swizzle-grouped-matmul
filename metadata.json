@@ -1,0 +1,5 @@
+{
+  "name": "Triton Grouped Matmul Visualizer",
+  "description": "Interactive visualization of how grouped matrix multiplication ordering increases L2 cache reuse compared to standard row-major ordering.",
+  "requestFramePermissions": []
+}
