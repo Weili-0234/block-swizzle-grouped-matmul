@@ -3,17 +3,14 @@ import { SimState } from '../types';
 
 interface StatsPanelProps {
   simState: SimState;
-  totalSteps: number;
+  totalOps: number;
   cacheSize: number;
 }
 
-export const StatsPanel: React.FC<StatsPanelProps> = ({ simState, totalSteps, cacheSize }) => {
-  const { hits, misses, step, cacheA, cacheB } = simState;
+export const StatsPanel: React.FC<StatsPanelProps> = ({ simState, totalOps, cacheSize }) => {
+  const { hits, misses, step } = simState;
   const totalAccesses = hits + misses;
   const hitRate = totalAccesses > 0 ? ((hits / totalAccesses) * 100).toFixed(1) : '0.0';
-  
-  // Estimate loads based on misses. In this simplified model, a miss = loading a block from DRAM.
-  // We treat A and B misses equally for simplicity.
   
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
@@ -21,14 +18,14 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ simState, totalSteps, ca
         <h2 className="text-lg font-bold text-slate-800 mb-4">Simulation Metrics</h2>
         <div className="grid grid-cols-2 gap-4">
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
-            <div className="text-xs text-slate-500 uppercase font-semibold">Progress</div>
+            <div className="text-xs text-slate-500 uppercase font-semibold">Micro-Steps</div>
             <div className="text-2xl font-mono text-slate-700">
-              {step} <span className="text-sm text-slate-400">/ {totalSteps}</span>
+              {step} <span className="text-sm text-slate-400">/ {totalOps}</span>
             </div>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
             <div className="text-xs text-slate-500 uppercase font-semibold">L2 Cache Size</div>
-            <div className="text-2xl font-mono text-slate-700">{cacheSize} <span className="text-sm">blocks</span></div>
+            <div className="text-2xl font-mono text-slate-700">{cacheSize} <span className="text-sm">tiles</span></div>
           </div>
         </div>
       </div>
@@ -57,15 +54,18 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ simState, totalSteps, ca
         </div>
 
         <div className="pt-2 flex justify-between items-center border-t border-slate-100 mt-2">
-          <span className="text-sm font-bold text-slate-700">Effective Hit Rate</span>
+          <span className="text-sm font-bold text-slate-700">Hit Rate</span>
           <span className="text-xl font-bold text-blue-600">{hitRate}%</span>
         </div>
       </div>
 
-      <div className="text-xs text-slate-400 leading-relaxed">
-        * 1 "Step" = Computing one block of C.<br/>
-        * Requires loading 1 block of A and 1 block of B.<br/>
-        * Hits occur when the required block is already in the L2 Cache (Green/Yellow highlights).
+      <div className="text-xs text-slate-400 leading-relaxed border-t border-slate-100 pt-3 mt-4">
+        <strong className="text-slate-600">Inner Loop Detail:</strong><br/>
+        Visualizing the K-dimension loop.<br/>
+        For each Output Tile C[m,n], we iterate k=0..K:<br/>
+        1. Load Tile A[m,k]<br/>
+        2. Load Tile B[k,n]<br/>
+        3. Accumulate
       </div>
     </div>
   );

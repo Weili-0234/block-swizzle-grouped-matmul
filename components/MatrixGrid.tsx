@@ -1,94 +1,141 @@
 import React from 'react';
 import { MatrixType } from '../types';
 
+interface Coordinate {
+  r: number;
+  c: number;
+}
+
+interface ActiveCTile {
+  m: number;
+  n: number;
+  kProgress: number;
+}
+
 interface MatrixGridProps {
   type: MatrixType;
   rows: number;
   cols: number;
-  activeRow?: number;
-  activeCol?: number;
-  activeCell?: { m: number; n: number };
-  cacheItems?: number[]; // Rows for A, Cols for B
+  
+  // Highlighting specific tiles (Changed to arrays for parallel CTAs)
+  activeTiles?: Coordinate[]; // For A and B
+  activeCTiles?: ActiveCTile[]; // For C
+  
+  cachedTiles?: string[]; // IDs like "A-0-0"
+  
   title: string;
-  cellSize?: number;
 }
 
 export const MatrixGrid: React.FC<MatrixGridProps> = ({
   type,
   rows,
   cols,
-  activeRow,
-  activeCol,
-  activeCell,
-  cacheItems = [],
+  activeTiles = [],
+  activeCTiles = [],
+  cachedTiles = [],
   title,
 }) => {
-  // Dynamic cell sizing based on grid dimensions to fit on screen
-  const getCellClass = (r: number, c: number) => {
-    const base = "transition-all duration-200 border border-slate-200 rounded-sm";
+  const getCellAppearance = (r: number, c: number) => {
+    // Base: shorter duration (100ms) for snappy fade-outs
+    const base = "border rounded-sm flex items-center justify-center relative overflow-hidden transition-all duration-100";
     
+    const tileId = `${type}-${r}-${c}`;
+    const isCached = cachedTiles.includes(tileId);
+
     // Matrix C Logic (The Output)
     if (type === 'C') {
-      if (activeCell && activeCell.m === r && activeCell.n === c) {
-        return `${base} bg-blue-600 border-blue-700 shadow-[0_0_10px_rgba(37,99,235,0.5)] z-10 scale-110`;
+      // Check if this tile is in the active list
+      const activeState = activeCTiles.find(t => t.m === r && t.n === c);
+
+      if (activeState) {
+        // Computing tile: Instant update
+        // Using Indigo (Deep Purple/Blue) for the result.
+        const alpha = 0.2 + (activeState.kProgress * 0.8);
+        
+        return {
+            className: `${base} !duration-0 border-indigo-600 shadow-[0_0_10px_rgba(79,70,229,0.5)] z-20 scale-110`,
+            style: { backgroundColor: `rgba(79, 70, 229, ${alpha})` }
+        };
       }
-      // Show completed cells
-      if (activeCell) {
-         // Assuming linear progress, not strictly correct for grouped but good enough for visual history if we tracked it differently.
-         // Instead, let's just highlight the active one strongly.
-      }
-      return `${base} bg-white`;
+      return { className: `${base} bg-white border-slate-200`, style: {} };
     }
 
-    // Matrix A Logic (Rows cached)
-    if (type === 'A') {
-      const isRowActive = activeRow === r;
-      const isRowCached = cacheItems.includes(r);
-      
-      if (isRowActive) {
-        return `${base} bg-emerald-500 border-emerald-600 shadow-md`;
-      }
-      if (isRowCached) {
-        return `${base} bg-emerald-100 border-emerald-200`;
-      }
-      return `${base} bg-white`;
+    // Matrix A & B Logic (Inputs)
+    // Check if this tile is being accessed by ANY of the active CTAs
+    const isActive = activeTiles.some(t => t.r === r && t.c === c);
+
+    if (isActive) {
+        // Active Tile:
+        // 1. !duration-0: Change color INSTANTLY.
+        // 2. Palette: Cyan (A) / Orange (B)
+        if (type === 'A') return { 
+            className: `${base} !duration-0 bg-cyan-500 border-cyan-600 shadow-lg scale-110 z-30 text-white`, 
+            style: {} 
+        };
+        if (type === 'B') return { 
+            className: `${base} !duration-0 bg-orange-500 border-orange-600 shadow-lg scale-110 z-30 text-white`, 
+            style: {} 
+        };
     }
 
-    // Matrix B Logic (Cols cached)
-    if (type === 'B') {
-      const isColActive = activeCol === c;
-      const isColCached = cacheItems.includes(c);
-
-      if (isColActive) {
-        return `${base} bg-amber-500 border-amber-600 shadow-md`;
-      }
-      if (isColCached) {
-        return `${base} bg-amber-100 border-amber-200`;
-      }
-      return `${base} bg-white`;
+    if (isCached) {
+      // Cached Tile - lighter versions
+      if (type === 'A') return { className: `${base} bg-cyan-100 border-cyan-200`, style: {} };
+      if (type === 'B') return { className: `${base} bg-orange-100 border-orange-200`, style: {} };
     }
 
-    return base;
+    // Default Inactive
+    return { className: `${base} bg-slate-50 border-slate-200 opacity-60`, style: {} };
   };
 
   return (
-    <div className="flex flex-col items-center">
-      <h3 className="mb-2 text-sm font-semibold text-slate-600 uppercase tracking-wider">{title}</h3>
-      <div 
-        className="grid gap-0.5 p-1 bg-slate-100 rounded-lg shadow-inner border border-slate-200"
-        style={{
-          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          width: 'fit-content'
-        }}
-      >
-        {Array.from({ length: rows }).map((_, r) =>
-          Array.from({ length: cols }).map((_, c) => (
-            <div
-              key={`${r}-${c}`}
-              className={`w-6 h-6 sm:w-8 sm:h-8 ${getCellClass(r, c)}`}
-            />
-          ))
-        )}
+    <div className="flex flex-col items-center w-fit">
+      <h3 className="mb-2 text-xs md:text-sm font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">{title}</h3>
+      
+      <div className="flex">
+        {/* Row Indices (Left) */}
+        <div className="flex flex-col mr-2 pt-[2px]">
+             {/* Spacer for col header */}
+             <div className="h-4 sm:h-5 mb-1"></div> 
+             <div className="grid gap-0.5 p-1 pt-0 border-transparent">
+                {Array.from({ length: rows }).map((_, r) => (
+                    <div key={`row-${r}`} className="h-6 sm:h-8 flex items-center justify-end text-[10px] text-slate-400 font-mono leading-none">
+                        {r}
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        {/* Column Indices (Top) & Grid */}
+        <div className="flex flex-col">
+            <div className="flex ml-1 pl-[2px] mb-1 gap-0.5">
+                {Array.from({ length: cols }).map((_, c) => (
+                    <div key={`col-${c}`} className="w-6 sm:w-8 text-center text-[10px] text-slate-400 font-mono leading-none">
+                        {c}
+                    </div>
+                ))}
+            </div>
+
+            <div 
+                className="grid gap-0.5 p-1 bg-slate-200/50 rounded-lg border border-slate-200"
+                style={{
+                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                }}
+            >
+                {Array.from({ length: rows }).map((_, r) =>
+                Array.from({ length: cols }).map((_, c) => {
+                    const { className, style } = getCellAppearance(r, c);
+                    return (
+                        <div
+                        key={`${r}-${c}`}
+                        className={`w-6 h-6 sm:w-8 sm:h-8 ${className}`}
+                        style={style}
+                        />
+                    );
+                })
+                )}
+            </div>
+        </div>
       </div>
     </div>
   );
